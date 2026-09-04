@@ -437,12 +437,37 @@ function dlBlock(it){
     var hash = Math.abs((it.t + it.c.join('')).split('').reduce(function(h,c){ return ((h<<5)-h) + c.charCodeAt(0); }, 0)) % 9999;
     var fileName = safeTitle + '__' + hash + '.md';
     return '<span class="dlbadge">含 SKILL.md</span>' +
-      '<a class="dlbtn primary" href="' + ghRawUrl(p) + '" download="' + fileName + '" onclick="event.stopPropagation()">⬇ 下载 SKILL.md</a>' +
+      '<a class="dlbtn primary" data-pa="' + p + '" data-title="' + it.t.replace(/"/g,'&quot;') + '" onclick="event.stopPropagation();dlOne(this)">⬇ 下载 SKILL.md</a>' +
       '<a class="dlbtn gh" href="' + ghWebUrl(p) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 GitHub</a>' +
       '<span class="dlpath">' + p + '</span>';
   } else {
     return '<span class="dlbadge" style="background:#fde8e8;color:#b94545">无源文件</span>' +
       '<span class="dlpath no">源文件不在仓库中，无法下载</span>';
+  }
+}
+async function dlOne(el){
+  var p = el.getAttribute('data-pa');
+  if(!p){ alert('该技能的源文件不在仓库中'); return; }
+  var title = el.getAttribute('data-title') || 'skill';
+  var safe = title.replace(/[\\/:*?"<>|]/g, '_');
+  var old = el.textContent;
+  el.disabled = true; el.textContent = '⏳ 下载中…'; el.classList.add('busy');
+  try {
+    var resp = await fetch(ghRawUrl(p));
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    var text = await resp.text();
+    var blob = new Blob([text], {type:'text/markdown;charset=utf-8'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = safe + '.md';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+    el.textContent = '✅ 已下载'; el.classList.remove('busy');
+    setTimeout(function(){ el.textContent = old; el.disabled = false; }, 2200);
+  } catch(e){
+    el.textContent = '❌ 下载失败'; el.classList.remove('busy');
+    setTimeout(function(){ el.textContent = old; el.disabled = false; }, 2200);
+    console.error(e);
   }
 }
 
